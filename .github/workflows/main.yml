@@ -21,6 +21,9 @@ jobs:
       - name: Publish .NET Core Project
         run: dotnet publish Modulhandbuch.Frontend/Modulhandbuch.Frontend.csproj -c Release -o release --nologo
 
+      - name: Fix base-tag in index.html
+        run: sed -i 's/<base href="\/" \/>/<base href="\/${{ github.event.repository.name }}\/" \/>/g' release/wwwroot/index.html
+
       - name: Commit wwwroot to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
