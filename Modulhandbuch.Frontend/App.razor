@@ -1,0 +1,13 @@
+﻿@using Modulhandbuch.Frontend.Shared
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Tja</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p role="alert">Tja, Pech gehabt.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

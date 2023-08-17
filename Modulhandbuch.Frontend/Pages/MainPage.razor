@@ -1,0 +1,119 @@
+﻿@page "/"
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@using Modulhandbuch.Frontend.Components
+@using global::Modulhandbuch.Shared
+@inject HttpClient Http
+
+<PageTitle>Mobiles Modulhandbuch</PageTitle>
+
+<h1>Mobiles Modulhandbuch</h1>
+
+<p>Bachelormodule: <InputCheckbox @bind-Value="@_hasBachelor" /></p>
+<p>Mastermodule: <InputCheckbox @bind-Value="@_hasMaster" /></p>
+
+<InputText @bind-Value="@_searchText" @oninput="x => _searchText = x.Value.ToString()" placeholder="Suchtext (unterstützt Regex!)"></InputText>
+
+<InputText @bind-Value="@_creditsStr" placeholder="Leistungspunkte"></InputText>
+
+<InputText @bind-Value="@_inId" placeholder="z.B. INFO"></InputText>
+
+<InputSelect @bind-Value="@_turnus">
+    <option value="@((Turnus?)null)">All</option>
+    @foreach (var turnus in Enum.GetValues(typeof(Turnus))) {
+        <option value="@turnus">@TurnusToString((Turnus)turnus)</option>
+    }
+</InputSelect>
+
+@if (_bachelorModules == null || _masterModules == null) {
+    <p><em>Laden...</em></p>
+} else {
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th>Leistungspunkte</th>
+                <th>Turnus</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var module in GetDisplayedModules()) {
+                <tr>
+                    <td><Tooltip Text="@module.Description">@module.Name</Tooltip></td>
+                    <td>@module.Id</td>
+                    <td>@module.Credits LP</td>
+                    <td>@TurnusToString(module.Turnus)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<div style="text-align: center">
+    <p style="font-size: 12px; margin-bottom: 2px">Es besteht keinerlei Verbindung zum KIT.</p>
+    <p style="font-size: 10px; margin-bottom: 2px">Alle Angaben ohne Gewehr.</p>
+    <p style="font-size: 8px; margin-bottom: 2px">Zu Risiken und Nebenwirkungen lesen Sie das README und fragen Sie Ihren Maintainer oder Contributor.</p>
+</div>
+
+@code {
+    private bool _hasBachelor = true;
+    private bool _hasMaster = true;
+
+    private string _searchText;
+    private string _creditsStr;
+
+    private string _inId;
+
+    private Turnus? _turnus;
+
+    private Module[]? _bachelorModules;
+    private Module[]? _masterModules;
+
+    private IEnumerable<Module> GetDisplayedModules() {
+        var enumerable = Enumerable.Empty<Module>();
+        if (_hasBachelor) {
+            enumerable = enumerable.Concat(_bachelorModules);
+        }
+        if (_hasMaster) {
+            enumerable = enumerable.Concat(_masterModules);
+        }
+
+        if (int.TryParse(_creditsStr, out var creditValue)) {
+            enumerable = enumerable.Where(x => x.Credits == creditValue);
+        }
+
+        if (!string.IsNullOrEmpty(_inId)) {
+            enumerable = enumerable.Where(x => x.Id.Contains(_inId));
+        }
+
+        if (!string.IsNullOrEmpty(_searchText)) {
+            var regex = new Regex(_searchText, RegexOptions.IgnoreCase);
+            enumerable = enumerable.Where(x => regex.IsMatch(x.Name));
+        }
+
+        if (_turnus.HasValue) {
+            enumerable = enumerable.Where(x => x.Turnus == _turnus.Value);
+        }
+
+        return enumerable.DistinctBy(x => x.Id);
+    }
+
+    protected override async Task OnInitializedAsync() {
+        var data = await Task.WhenAll(new[] { "bachelor.json", "master.json" }
+            .Select(async x => await JsonSerializer.DeserializeAsync<Module[]>(await Http.GetStreamAsync(x), SerializerOptions.Default)));
+        _bachelorModules = data[0];
+        _masterModules = data[1];
+    }
+
+    private static string TurnusToString(Turnus turnus)
+        => turnus switch {
+            Turnus.EverySemester => "Jedes Semester",
+            Turnus.EverySummerSemester => "Jedes Sommersemester",
+            Turnus.EveryWinterSemester => "Jedes Wintersemester",
+            Turnus.Irregular => "Unregelmäßig",
+            Turnus.OneTime => "Einmalig",
+            Turnus.Yearly => "Jährlich",
+            Turnus.SeeNotes => "Siehe Notizen",
+        };
+}
