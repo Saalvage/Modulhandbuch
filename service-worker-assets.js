@@ -193,6 +193,10 @@
       "url": "Modulhandbuch.Frontend.styles.css"
     },
     {
+      "hash": "sha256-47DEQpj8HBSa+\/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+      "url": ".nojekyll"
+    },
+    {
       "hash": "sha256-LUeq0hUEgl3VXVWnV+poZvB\/yMHl4LZX4rnmPBbZxWY=",
       "url": "bachelor.json"
     },
@@ -269,5 +273,5 @@
       "url": "master.json"
     }
   ],
-  "version": "tXXHPHHv"
+  "version": "tYO2jbF0"
 };
