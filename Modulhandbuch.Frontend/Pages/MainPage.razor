@@ -10,25 +10,32 @@
 @inject HttpClient Http
 @inject NavigationManager NavManager
 
-<PageTitle>Mobiles Modulhandbuch</PageTitle>
+<PageTitle>Modulhandbuch</PageTitle>
 
-<h1>Mobiles Modulhandbuch</h1>
+<div class="form-check form-switch next-to-right" style="margin-right: 50pt">
+    <InputCheckbox @bind-Value="@Bachelor" class="form-check-input" type="checkbox" role="switch" id="bachelortoggle"/>
+    <label class="form-check-label" for="bachelortoggle">Bachelormodule</label>
+</div>
+<div class="form-check form-switch">
+    <InputCheckbox @bind-Value="@Master" class="form-check-input" type="checkbox" role="switch" id="mastertoggle"/>
+    <label class="form-check-label" for="mastertoggle">Mastermodule</label>
+</div>
 
-<p>Bachelormodule: <InputCheckbox @bind-Value="@Bachelor" /></p>
-<p>Mastermodule: <InputCheckbox @bind-Value="@Master" /></p>
+<div class="form-group" style="margin-bottom: 5px">
+    <InputText @bind-Value="@Search" @oninput="x => Search = x.Value.ToString()" placeholder="Suchtext (unterstützt Regex!)"
+               class="form-control next-to-right" style="width: 20rem" />
+    <InputText @bind-Value="@Credits" placeholder="ECTS" class="form-control" style="width: 5rem" />
+</div>
 
-<InputText @bind-Value="@Search" @oninput="x => Search = x.Value.ToString()" placeholder="Suchtext (unterstützt Regex!)"></InputText>
-
-<InputText @bind-Value="@Credits" placeholder="Leistungspunkte"></InputText>
-
-<InputText @bind-Value="@InId" placeholder="z.B. INFO"></InputText>
-
-<InputSelect @bind-Value="@Turn">
-    <option value="">Alle</option>
-    @foreach (var turnus in Enum.GetValues(typeof(Turnus))) {
-        <option value="@turnus">@TurnusToString((Turnus)turnus)</option>
-    }
-</InputSelect>
+<div class="form-group">
+    <InputText @bind-Value="@InId" placeholder="z.B. INFO" class="form-control next-to-right" style="width: 10rem" />
+    <InputSelect @bind-Value="@Turn" class="form-select" style="width: 15rem">
+        <option value="">Alle</option>
+        @foreach (var turnus in Enum.GetValues(typeof(Turnus))) {
+            <option value="@turnus">@TurnusToString((Turnus)turnus)</option>
+        }
+    </InputSelect>
+</div>
 
 @if (_bachelorModules == null || _masterModules == null) {
     <p><em>Laden...</em></p>
