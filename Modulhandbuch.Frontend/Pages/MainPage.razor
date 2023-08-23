@@ -45,7 +45,7 @@
         <tbody>
             @foreach (var module in GetDisplayedModules()) {
                 <tr>
-                    <td><Tooltip Text="@module.Description">@module.Name</Tooltip></td>
+                    <td @onclick="async () => await _popup.Show(NewlinesToParagraphs(module.Description), module.Name)">@module.Name</td>
                     <td>@module.Id</td>
                     <td>@module.Credits LP</td>
                     <td>@TurnusToString(module.Turnus)</td>
@@ -61,7 +61,11 @@
     <p style="font-size: 8px; margin-bottom: 2px">Zu Risiken und Nebenwirkungen lesen Sie das README und fragen Sie Ihren Maintainer oder Contributor.</p>
 </div>
 
+<Popup @ref="_popup"/>
+
 @code {
+    private Popup _popup;
+
     public bool Bachelor { get; set; } = true;
     public bool Master { get; set; } = true;
 
@@ -151,4 +155,8 @@
             Turnus.Yearly => "Jährlich",
             Turnus.SeeNotes => "Siehe Notizen",
         };
+
+    private static string NewlinesToParagraphs(string input)
+        => "<p>" + input.Replace("\n", "</p><p>") + "</p>";
+
 }

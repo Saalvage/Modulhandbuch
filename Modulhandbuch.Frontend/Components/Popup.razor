@@ -1,0 +1,51 @@
+﻿@inject IJSRuntime JS
+
+<div class="toast-container p-3 @ShowClass" data-bs-autohide="true" data-bs-delay="5000" style="position: fixed; bottom: 10px; width: auto">
+    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" style="width: 100%; background-color: white">
+        <div class="toast-header">
+            <button type="button" class="btn-close" aria-label="Close" @onclick="Close" style="margin-left: .375rem; margin-right: .75rem"></button>
+            <strong class="me-auto">@HeaderText</strong>
+        </div>
+
+        <div id="popup-body" class="toast-body" style="overflow-y: auto; height: 50vh">
+            @((MarkupString)(BodyText ?? ""))
+        </div>
+    </div>
+</div>
+
+<script>
+    function resetBodyScroll() {
+        document.getElementById('popup-body').scrollTop = 0;
+    }
+</script>
+
+@code {
+    private string ShowClass => IsVisible ? "d-block" : "d-none";
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter]
+    public string? HeaderText { get; set; }
+
+    [Parameter]
+    public string? BodyText { get; set; }
+
+    public async Task Show(string bodyText, string headerText = "") {
+        HeaderText = headerText;
+        BodyText = bodyText;
+        IsVisible = true;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("resetBodyScroll");
+    }
+
+    private void Close() {
+        HeaderText = string.Empty;
+        BodyText = string.Empty;
+        IsVisible = false;
+        StateHasChanged();
+    }
+}

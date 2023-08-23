@@ -32,6 +32,24 @@
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
     <script>navigator.serviceWorker.register('service-worker.js');</script>
+
+    <script>
+        // This is fucking embarrassing: https://github.com/dotnet/aspnetcore/issues/40190
+        var scrollDesired = true;
+        const origScrollTo = window.scrollTo;
+        window.scrollTo = (x, y) => {
+            if (x === 0 && y === 0 && !scrollDesired) {
+                scrollDesired = false;
+                return;
+            }
+            scrollDesired = false;
+            return origScrollTo.apply(this, [x, y]);
+        };
+
+        function wantToScroll() {
+            scrollDesired = true;
+        }
+    </script>
 </body>
 
 </html>
