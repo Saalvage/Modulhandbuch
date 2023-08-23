@@ -84,11 +84,11 @@
 
             if (dic.TryGetValue(p.Name, out var val) && val.Count == 1) {
                 var converter = TypeDescriptor.GetConverter(p.PropertyType);
-                if (!converter.IsValid(val[0])) {
+                if (!converter.IsValid(val[0]!)) {
                     continue;
                 }
 
-                p.SetValue(this, converter.ConvertFromString(val[0]));
+                p.SetValue(this, converter.ConvertFromString(val[0]!));
             }
         }
     }
