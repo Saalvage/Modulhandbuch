@@ -84,7 +84,7 @@ a, .btn-link {
     }
 
         .loading-progress circle:last-child {
-            stroke: #1b6ec2;
+            stroke: #2ea28a;
             stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
             transition: stroke-dasharray 0.05s ease-in-out;
         }
@@ -135,4 +135,12 @@ span {
 
 .tooltip-wrapper:hover span {
     visibility: visible;
+}
+
+.module-info::before {
+    cursor: pointer;
+}
+
+.module-info:hover:before {
+    text-shadow: 0 0 2px #aaa;
 }
