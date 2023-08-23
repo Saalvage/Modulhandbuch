@@ -3,23 +3,28 @@
 @using System.Text.RegularExpressions
 @using Modulhandbuch.Frontend.Components
 @using global::Modulhandbuch.Shared
+@using Microsoft.AspNetCore.WebUtilities
+@using System.ComponentModel
+@using System.Reflection
+@using Module = Modulhandbuch.Shared.Module
 @inject HttpClient Http
+@inject NavigationManager NavManager
 
 <PageTitle>Mobiles Modulhandbuch</PageTitle>
 
 <h1>Mobiles Modulhandbuch</h1>
 
-<p>Bachelormodule: <InputCheckbox @bind-Value="@_hasBachelor" /></p>
-<p>Mastermodule: <InputCheckbox @bind-Value="@_hasMaster" /></p>
+<p>Bachelormodule: <InputCheckbox @bind-Value="@Bachelor" /></p>
+<p>Mastermodule: <InputCheckbox @bind-Value="@Master" /></p>
 
-<InputText @bind-Value="@_searchText" @oninput="x => _searchText = x.Value.ToString()" placeholder="Suchtext (unterstützt Regex!)"></InputText>
+<InputText @bind-Value="@Search" @oninput="x => Search = x.Value.ToString()" placeholder="Suchtext (unterstützt Regex!)"></InputText>
 
-<InputText @bind-Value="@_creditsStr" placeholder="Leistungspunkte"></InputText>
+<InputText @bind-Value="@Credits" placeholder="Leistungspunkte"></InputText>
 
-<InputText @bind-Value="@_inId" placeholder="z.B. INFO"></InputText>
+<InputText @bind-Value="@InId" placeholder="z.B. INFO"></InputText>
 
-<InputSelect @bind-Value="@_turnus">
-    <option value="@((Turnus?)null)">All</option>
+<InputSelect @bind-Value="@Turn">
+    <option value="">Alle</option>
     @foreach (var turnus in Enum.GetValues(typeof(Turnus))) {
         <option value="@turnus">@TurnusToString((Turnus)turnus)</option>
     }
@@ -57,43 +62,73 @@
 </div>
 
 @code {
-    private bool _hasBachelor = true;
-    private bool _hasMaster = true;
+    public bool Bachelor { get; set; } = true;
+    public bool Master { get; set; } = true;
 
-    private string _searchText;
-    private string _creditsStr;
+    public string Search { get; set; } = "";
+    public string Credits { get; set; } = "";
 
-    private string _inId;
+    public string InId { get; set; } = "";
 
-    private Turnus? _turnus;
+    public Turnus? Turn { get; set; }
 
     private Module[]? _bachelorModules;
     private Module[]? _masterModules;
 
+    private readonly Dictionary<PropertyInfo, object?> _defaults = new();
+
+    protected override void OnInitialized() {
+        var dic = QueryHelpers.ParseQuery(NavManager.ToAbsoluteUri(NavManager.Uri).Query);
+        foreach (var p in GetType().GetProperties()) {
+            _defaults.Add(p, p.GetValue(this));
+
+            if (dic.TryGetValue(p.Name, out var val) && val.Count == 1) {
+                var converter = TypeDescriptor.GetConverter(p.PropertyType);
+                if (!converter.IsValid(val[0])) {
+                    continue;
+                }
+
+                p.SetValue(this, converter.ConvertFromString(val[0]));
+            }
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender) {
+        var dic = new Dictionary<string, string>();
+        foreach (var p in GetType().GetProperties()) {
+            if (!p.GetValue(this)?.Equals(_defaults[p]) ?? _defaults[p] != null) {
+                dic.Add(p.Name.ToLowerInvariant(), p.GetValue(this)?.ToString() ?? "");
+            }
+        }
+
+        var newUri = QueryHelpers.AddQueryString(NavManager.ToAbsoluteUri(NavManager.Uri).AbsolutePath, dic);
+        NavManager.NavigateTo(newUri, false, true);
+    }
+
     private IEnumerable<Module> GetDisplayedModules() {
         var enumerable = Enumerable.Empty<Module>();
-        if (_hasBachelor) {
+        if (Bachelor) {
             enumerable = enumerable.Concat(_bachelorModules);
         }
-        if (_hasMaster) {
+        if (Master) {
             enumerable = enumerable.Concat(_masterModules);
         }
 
-        if (int.TryParse(_creditsStr, out var creditValue)) {
+        if (int.TryParse(Credits, out var creditValue)) {
             enumerable = enumerable.Where(x => x.Credits == creditValue);
         }
 
-        if (!string.IsNullOrEmpty(_inId)) {
-            enumerable = enumerable.Where(x => x.Id.Contains(_inId));
+        if (!string.IsNullOrEmpty(InId)) {
+            enumerable = enumerable.Where(x => x.Id.Contains(InId));
         }
 
-        if (!string.IsNullOrEmpty(_searchText)) {
-            var regex = new Regex(_searchText, RegexOptions.IgnoreCase);
+        if (!string.IsNullOrEmpty(Search)) {
+            var regex = new Regex(Search, RegexOptions.IgnoreCase);
             enumerable = enumerable.Where(x => regex.IsMatch(x.Name));
         }
 
-        if (_turnus.HasValue) {
-            enumerable = enumerable.Where(x => x.Turnus == _turnus.Value);
+        if (Turn.HasValue) {
+            enumerable = enumerable.Where(x => x.Turnus == Turn.Value);
         }
 
         return enumerable.DistinctBy(x => x.Id);
