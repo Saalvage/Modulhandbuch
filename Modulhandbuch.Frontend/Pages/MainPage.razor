@@ -45,7 +45,12 @@
         <tbody>
             @foreach (var module in GetDisplayedModules()) {
                 <tr>
-                    <td @onclick="async () => await _popup.Show(NewlinesToParagraphs(module.Description), module.Name)">@module.Name</td>
+                    <td>
+                        <i class="bi bi-question-circle module-info"
+                           @onclick="async () => await _popup.Show(NewlinesToParagraphs(module.Description), module.Name)">
+                        </i>
+                        @module.Name
+                    </td>
                     <td>@module.Id</td>
                     <td>@module.Credits LP</td>
                     <td>@TurnusToString(module.Turnus)</td>
