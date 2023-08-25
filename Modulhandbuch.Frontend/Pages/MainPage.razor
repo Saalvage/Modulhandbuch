@@ -68,7 +68,7 @@
                 <tr>
                     <td>
                         <i class="bi bi-question-circle module-info"
-                           @onclick="async () => await _popup.Show(NewlinesToParagraphs(module.Description), module.Name)">
+                           @onclick="() => _popup.Show(NewlinesToParagraphs(module.Description), module.Name)">
                         </i>
                         @module.Name
                     </td>

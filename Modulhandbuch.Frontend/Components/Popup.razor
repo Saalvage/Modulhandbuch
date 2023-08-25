@@ -34,18 +34,18 @@
     [Parameter]
     public string? BodyText { get; set; }
 
-    public async Task Show(string bodyText, string headerText = "") {
+    public void Show(string bodyText, string headerText = "") {
         HeaderText = headerText;
         BodyText = bodyText;
         IsVisible = true;
         StateHasChanged();
-        await JS.InvokeVoidAsync("resetBodyScroll");
     }
 
-    private void Close() {
+    private async Task Close() {
         HeaderText = string.Empty;
         BodyText = string.Empty;
         IsVisible = false;
         StateHasChanged();
+        await JS.InvokeVoidAsync("resetBodyScroll");
     }
 }
