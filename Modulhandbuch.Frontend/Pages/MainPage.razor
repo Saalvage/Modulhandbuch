@@ -5,36 +5,50 @@
 @using global::Modulhandbuch.Shared
 @using Microsoft.AspNetCore.WebUtilities
 @using System.ComponentModel
-@using System.Reflection
 @using Module = Modulhandbuch.Shared.Module
 @inject HttpClient Http
 @inject NavigationManager NavManager
 
 <PageTitle>Modulhandbuch</PageTitle>
 
-<div class="form-check form-switch next-to-right" style="margin-right: 50pt">
+<div class="form-switch next-to-right" style="margin-right: 50pt">
     <InputCheckbox @bind-Value="@Bachelor" class="form-check-input" type="checkbox" role="switch" id="bachelortoggle"/>
     <label class="form-check-label" for="bachelortoggle">Bachelormodule</label>
 </div>
-<div class="form-check form-switch">
+<div class="form-switch" style="margin-bottom: 1rem">
     <InputCheckbox @bind-Value="@Master" class="form-check-input" type="checkbox" role="switch" id="mastertoggle"/>
     <label class="form-check-label" for="mastertoggle">Mastermodule</label>
 </div>
 
-<div class="form-group" style="margin-bottom: 5px">
-    <InputText @bind-Value="@Search" @oninput="x => Search = x.Value.ToString()" placeholder="Suchtext (unterstützt Regex!)"
-               class="form-control next-to-right" style="width: 20rem" />
-    <InputText @bind-Value="@Credits" placeholder="ECTS" class="form-control" style="width: 5rem" />
-</div>
+<InputText @bind-Value="@Search" @oninput="x => Search = x.Value.ToString()" placeholder="Suchtext (unterstützt Regex!)"
+           class="form-control" style="width: 25rem; margin-bottom: 1rem" />
 
-<div class="form-group">
-    <InputText @bind-Value="@InId" placeholder="z.B. INFO" class="form-control next-to-right" style="width: 10rem" />
-    <InputSelect @bind-Value="@Turn" class="form-select" style="width: 15rem">
-        <option value="">Alle</option>
-        @foreach (var turnus in Enum.GetValues(typeof(Turnus))) {
-            <option value="@turnus">@TurnusToString((Turnus)turnus)</option>
-        }
-    </InputSelect>
+@if (_ectsTotalMax != 0) {
+    <div style="margin-bottom: 1rem; width: fit-content">
+        <p class="form-check-label" style="margin-bottom: -2px; text-align: center">ECTS: @EctsMin - @EctsMax</p>
+        <MultiRange @ref="_range" @bind-ValueLow="EctsMin" @bind-ValueHigh="EctsMax" Min="_ectsTotalMin" Max="_ectsTotalMax"></MultiRange>
+    </div>
+}
+
+<div class="input-group">
+    <div class="form-floating" style="margin-right: 1rem">
+        <InputSelect @bind-Value="@InId" class="form-select" style="width: 9rem" id="inid">
+            <option value="">Alle</option>
+            @foreach (var inId in _inIds) {
+                <option value="@inId">@inId</option>
+            }
+        </InputSelect>
+        <label class="form-check-label" for="inid">Zugehörigkeit</label>
+    </div>
+    <div class="form-floating">
+        <InputSelect @bind-Value="@Turn" class="form-select" style="width: 15rem" id="turnus">
+            <option value="">Alle</option>
+            @foreach (var turnus in Enum.GetValues(typeof(Turnus))) {
+                <option value="@turnus">@TurnusToString((Turnus) turnus)</option>
+            }
+        </InputSelect>
+        <label class="form-check-label" for="turnus">Turnus</label>
+    </div>
 </div>
 
 @if (_bachelorModules == null || _masterModules == null) {
@@ -77,27 +91,38 @@
 
 @code {
     private Popup _popup;
+    private MultiRange _range;
 
     public bool Bachelor { get; set; } = true;
     public bool Master { get; set; } = true;
 
     public string Search { get; set; } = "";
-    public string Credits { get; set; } = "";
+
+    public int EctsMin { get; set; }
+    public int EctsMax { get; set; }
 
     public string InId { get; set; } = "";
 
     public Turnus? Turn { get; set; }
 
+    private int _ectsTotalMin;
+    private int _ectsTotalMax;
+    private string[] _inIds = Array.Empty<string>();
+
     private Module[]? _bachelorModules;
     private Module[]? _masterModules;
 
-    private readonly Dictionary<PropertyInfo, object?> _defaults = new();
+    private readonly Dictionary<string, object?> _defaults = new();
 
-    protected override void OnInitialized() {
+    private void GenerateDefaults() {
+        foreach (var p in GetType().GetProperties()) {
+            _defaults.Add(p.Name, p.GetValue(this));
+        }
+    }
+
+    private void ApplyQueryParameters() {
         var dic = QueryHelpers.ParseQuery(NavManager.ToAbsoluteUri(NavManager.Uri).Query);
         foreach (var p in GetType().GetProperties()) {
-            _defaults.Add(p, p.GetValue(this));
-
             if (dic.TryGetValue(p.Name, out var val) && val.Count == 1) {
                 var converter = TypeDescriptor.GetConverter(p.PropertyType);
                 if (!converter.IsValid(val[0]!)) {
@@ -109,10 +134,15 @@
         }
     }
 
+    protected override void OnInitialized() {
+        GenerateDefaults();
+        ApplyQueryParameters();
+    }
+
     protected override void OnAfterRender(bool firstRender) {
         var dic = new Dictionary<string, string>();
         foreach (var p in GetType().GetProperties()) {
-            if (!p.GetValue(this)?.Equals(_defaults[p]) ?? _defaults[p] != null) {
+            if (!p.GetValue(this)?.Equals(_defaults[p.Name]) ?? _defaults[p.Name] != null) {
                 dic.Add(p.Name.ToLowerInvariant(), p.GetValue(this)?.ToString() ?? "");
             }
         }
@@ -130,9 +160,7 @@
             enumerable = enumerable.Concat(_masterModules);
         }
 
-        if (int.TryParse(Credits, out var creditValue)) {
-            enumerable = enumerable.Where(x => x.Credits == creditValue);
-        }
+        enumerable = enumerable.Where(x => x.Credits >= EctsMin && x.Credits <= EctsMax);
 
         if (!string.IsNullOrEmpty(InId)) {
             enumerable = enumerable.Where(x => x.Id.Contains(InId));
@@ -155,6 +183,17 @@
             .Select(async x => await JsonSerializer.DeserializeAsync<Module[]>(await Http.GetStreamAsync(x), SerializerOptions.Default)));
         _bachelorModules = data[0];
         _masterModules = data[1];
+        _inIds = _bachelorModules.Concat(_masterModules)
+            .Select(x => x.Id[(x.Id.IndexOf('-')+1)..x.Id.LastIndexOf('-')])
+            .Distinct()
+            .ToArray();
+        _ectsTotalMin = _bachelorModules.Concat(_masterModules)
+            .Min(x => x.Credits);
+        _ectsTotalMax = _bachelorModules.Concat(_masterModules)
+            .Max(x => x.Credits);
+        _defaults[nameof(EctsMin)] = EctsMin = _ectsTotalMin;
+        _defaults[nameof(EctsMax)] = EctsMax = _ectsTotalMax;
+        ApplyQueryParameters();
     }
 
     private static string TurnusToString(Turnus turnus)

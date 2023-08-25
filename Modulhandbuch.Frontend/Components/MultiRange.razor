@@ -1,0 +1,368 @@
+﻿@using System.Runtime.CompilerServices
+@inject IJSRuntime JS
+
+<input style="width: 25rem" @ref="_input" type="range" min="@Min" max="@Max" multiple data-drag-middle />
+
+<!-- TODO: This should be moved (and rewritten in C#) -->
+<!-- Adapted from: https://github.com/LeaVerou/multirange -->
+<style>
+    @@supports (--css: variables) {
+        input[type="range"].multirange {
+            padding: 0;
+            margin: 0;
+            display: inline-block;
+            vertical-align: top;
+        }
+        input[type="range"].multirange::-moz-range-thumb {
+            transform: scale(1); /* FF doesn't apply position it seems */
+        }
+
+        input[type="range"].multirange.original {
+            position: absolute;
+        }
+
+        input[type="range"].multirange.original::-webkit-slider-thumb {
+            position: relative;
+            z-index: 2;
+        }
+
+        input[type="range"].multirange.original::-moz-range-thumb {
+            z-index: 2;
+        }
+
+        input[type="range"].multirange::-moz-range-track {
+            border-color: transparent; /* needed to switch FF to "styleable" control */
+        }
+
+        input[type="range"].multirange.middle {
+            position: absolute;
+            -webkit-appearance: none;
+        }
+        input[type="range"].multirange.middle:focus {
+            outline: none;
+        }
+        input[type="range"].multirange.middle::-moz-range-thumb {
+            position: relative;
+            z-index: 1;
+            height: 9px;
+            width: var(--size);
+            margin-top: 6px;
+            margin-bottom: 6px;
+            background: transparent;
+            cursor: pointer;
+            border: 0;
+        }
+        input[type="range"].multirange.middle::-webkit-slider-thumb {
+            position: relative;
+            z-index: 1;
+            height: 9px;
+            width: var(--size);
+            margin-top: 6px;
+            margin-bottom: 6px;
+            background: transparent;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"].multirange.ghost {
+            position: relative;
+            background: var(--track-background);
+            --track-background: linear-gradient(to right,
+                                                transparent var(--low), var(--range-color) 0,
+                                                var(--range-color) var(--high), transparent 0
+			) no-repeat 0 45% / 100% 40%;
+            --range-color: hsl(190, 80%, 40%);
+        }
+
+        input[type="range"].multirange.ghost::-webkit-slider-runnable-track {
+            background: var(--track-background);
+        }
+
+        input[type="range"].multirange.ghost::-moz-range-track {
+            background: var(--track-background);
+        }
+        input[type="range"].multirange.ghost::-webkit-slider-thumb {
+            position: relative;
+            z-index: 2;
+        }
+        input[type="range"].multirange.ghost::-moz-range-thumb {
+            z-index: 2;
+        }
+    }
+
+    /* IE */
+    @@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+
+        input[type="range"].multirange {
+            padding: 0;
+            vertical-align: top;
+        }
+        input[type="range"].multirange::-ms-track {
+            color: transparent; /* Hide tick marks */
+            background: transparent;
+            border: 0;
+        }
+        input[type="range"].multirange::-ms-fill-lower {
+            background: transparent;
+        }
+        input[type="range"].multirange::-ms-fill-upper {
+            background: transparent;
+        }
+	
+        input[type="range"].multirange.original {
+            position: absolute;
+        }
+        input[type="range"].multirange.original::-ms-track {
+            background: hsl(190, 80%, 40%);
+        }
+        input[type="range"].multirange.original::-ms-fill-lower {
+            background: #ddd;
+        }
+
+        input[type="range"].multirange.middle {
+            position: absolute;
+        }
+
+        input[type="range"].multirange.ghost {
+            position: relative;
+        }
+        input[type="range"].multirange.ghost::-ms-fill-upper {
+            background: #ddd;
+        }
+
+        /* Switch colors when inputs are switched, see JavaScript */
+
+        input[type="range"].multirange.switched.original::-ms-fill-lower {
+            background: transparent;
+        }
+        input[type="range"].multirange.switched.original::-ms-fill-upper {
+            background: #ddd;
+        }
+
+        input[type="range"].multirange.switched.ghost::-ms-fill-upper {
+            background: transparent;
+        }
+        input[type="range"].multirange.switched.ghost::-ms-fill-lower {
+            background: #ddd;
+        }
+    }
+
+    input[type="range"].multirange {
+        -webkit-appearance: none;
+    }
+    input[type="range"].multirange.middle,
+    input[type="range"].multirange.original{
+        background: linear-gradient(to bottom, rgba(255,255,255,0) 0%,rgba(245,245,245,0) 37%,rgba(245,245,245,1) 38%,rgba(242,242,242,1) 50%,rgba(245,245,245,1) 62%,rgba(245,245,245,0) 63%,rgba(255,255,255,0) 100%);
+    }
+</style>
+
+<script>
+    (function () {
+        "use strict";
+
+        // Don't attempt to pollyfill when using SSR
+        if (typeof self === "undefined" || !self.HTMLInputElement) {
+            return;
+        }
+
+        var descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+
+        var multirange = function (input) {
+            var value = input.getAttribute("value");
+            var values = value === null ? [] : value.split(",");
+            var min = +(input.min || 0);
+            var max = +(input.max || 100);
+            var ghost = input.cloneNode();
+            var dragMiddle = input.getAttribute("data-drag-middle") !== null;
+            var middle = input.cloneNode();
+
+            input.classList.add("multirange");
+            input.classList.add("original");
+            ghost.classList.add("multirange");
+            ghost.classList.add("ghost");
+
+            input.value = values[0] || min + (max - min) / 2;
+            ghost.value = values[1] || min + (max - min) / 2;
+
+            input.parentNode.insertBefore(ghost, input.nextSibling);
+
+            Object.defineProperty(input, "originalValue", descriptor.get ? descriptor : {
+                // Fuck you Safari >:(
+                get: function () { return this.value; },
+                set: function (v) { this.value = v; }
+            });
+
+            Object.defineProperties(input, {
+                valueLow: {
+                    get: function () { return Math.min(this.originalValue, ghost.value); },
+                    set: function (v) { this.originalValue = v; update(); },
+                    enumerable: true
+                },
+                valueHigh: {
+                    get: function () { return Math.max(this.originalValue, ghost.value); },
+                    set: function (v) { ghost.value = v; update(); },
+                    enumerable: true
+                }
+            });
+
+            if (descriptor.get) {
+                // Again, fuck you Safari
+                Object.defineProperty(input, "value", {
+                    get: function () { return this.valueLow + "," + this.valueHigh; },
+                    set: function (v) {
+                        var values = v.split(",");
+                        this.valueLow = values[0];
+                        this.valueHigh = values[1];
+                        update();
+                    },
+                    enumerable: true
+                });
+            }
+
+            if (typeof input.oninput === "function") {
+                ghost.oninput = input.oninput.bind(input);
+            }
+
+            function update(mode) {
+                ghost.style.setProperty("--low", 100 * ((input.valueLow - min) / (max - min)) + 1 + "%");
+                ghost.style.setProperty("--high", 100 * ((input.valueHigh - min) / (max - min)) - 1 + "%");
+                
+                input.dotNetHelper?.invokeMethodAsync('UpdateValues', input.valueLow, input.valueHigh);
+
+                if (dragMiddle && mode !== 1) {
+                    var w = input.valueHigh - input.valueLow;
+                    if (w > 1) w -= 0.5;
+                    middle.style.setProperty("--size", (100 * w / (max - min)) + "%");
+                    middle.value = min + (input.valueHigh + input.valueLow - 2 * min - w) * (max - min) / (2 * (max - min - w));
+                }
+                // Switch colors in IE
+                if (input.value > ghost.value) {
+                    input.classList.add("switched");
+                    ghost.classList.add("switched");
+                } else {
+                    input.classList.remove("switched");
+                    ghost.classList.remove("switched");
+                }
+            }
+
+            ghost.addEventListener("mousedown", function passClick(evt) {
+                // Find the horizontal position that was clicked
+                var clickValue = min + (max - min) * evt.offsetX / this.offsetWidth;
+                var middleValue = (input.valueHigh + input.valueLow) / 2;
+                if ((input.valueLow == ghost.value) == (clickValue > middleValue)) {
+                    // Click is closer to input element and we swap thumbs
+                    input.value = ghost.value;
+                }
+            });
+            input.addEventListener("input", update);
+            ghost.addEventListener("input", update);
+
+            if (dragMiddle) {
+                middle.classList.add("multirange");
+                middle.classList.add("middle");
+                input.parentNode.insertBefore(middle, input.nextSibling);
+                middle.addEventListener("input", function () {
+                    var w = input.valueHigh - input.valueLow;
+                    var m = min + w / 2 + (middle.value - min) * (max - min - w) / (max - min);
+                    input.valueLow = m - w / 2;
+                    input.valueHigh = input.valueLow + w;
+                    update(1);
+                });
+            }
+
+            update();
+        }
+
+        multirange.init = function () {
+            [].slice.call(document.querySelectorAll("input[type=range][multiple]:not(.multirange)")).forEach(multirange);
+        }
+
+        if (typeof module === "undefined") {
+            self.multirange = multirange;
+            if (document.readyState == "loading") {
+                document.addEventListener("DOMContentLoaded", multirange.init);
+            }
+            else {
+                multirange.init();
+            }
+        } else {
+            module.exports = multirange;
+        }
+
+    })();
+
+    function setProperty(elem, prop, ref) {
+        elem[prop] = ref;
+    }
+</script>
+
+@code {
+    private int _valueLow;
+    [Parameter]
+    public int ValueLow {
+        get => _valueLow;
+        set {
+            if (value != _valueLow) {
+                _valueLow = value;
+                ValueLowChanged.InvokeAsync(value);
+                UpdateJSAsync();
+            }
+        }
+    }
+
+    private int _valueHigh;
+    [Parameter]
+    public int ValueHigh {
+        get => _valueHigh;
+        set {
+            if (value != _valueHigh) {
+                _valueHigh = value;
+                ValueHighChanged.InvokeAsync(value);
+                UpdateJSAsync();
+            }
+        }
+    }
+
+    private async Task UpdateJSAsync() {
+        await JS.InvokeVoidAsync("setProperty", _input, "value", $"{_valueLow},{_valueHigh}");
+    }
+
+    [Parameter] public int Min { get; set; }
+    [Parameter] public int Max { get; set; }
+
+    private ElementReference _input;
+
+    private DotNetObjectReference<Child>? _ref;
+
+    public MultiRange() {
+        _child = new(this);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        await UpdateJSAsync();
+        await JS.InvokeVoidAsync("setProperty", _input, "dotNetHelper", _ref ??= DotNetObjectReference.Create(_child));
+    }
+
+    private class Child {
+        private readonly MultiRange _parent;
+
+        public Child(MultiRange parent) => _parent = parent;
+
+        [JSInvokable]
+        public async Task UpdateValues(int low, int high) {
+            if (low != _parent._valueLow) {
+                _parent._valueLow = low;
+                await _parent.ValueLowChanged.InvokeAsync(low);
+            }
+
+            if (high != _parent._valueHigh) {
+                _parent._valueHigh = high;
+                await _parent.ValueHighChanged.InvokeAsync(high);
+            }
+        }
+    }
+    private readonly Child _child;
+
+    [Parameter] public EventCallback<int> ValueLowChanged { get; set; }
+    [Parameter] public EventCallback<int> ValueHighChanged { get; set; }
+}
