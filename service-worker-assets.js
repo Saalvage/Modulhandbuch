@@ -33,7 +33,7 @@
       "url": "_framework\/icudt.dat"
     },
     {
-      "hash": "sha256-6AnhIx7LVJL8N5I+ehlKlOYFaXL4NJClYEt7X0sbBx0=",
+      "hash": "sha256-be21G5hWUKEmLr5z6LqGsNP5OlQUaqXkEi1KgAo95qk=",
       "url": "_framework\/blazor.boot.json"
     },
     {
@@ -105,7 +105,7 @@
       "url": "_framework\/Microsoft.Net.Http.Headers.dll"
     },
     {
-      "hash": "sha256-2RsMuGN1Sna0pfy63q0WYkGKCfYKv5pL\/oyqFXYULPw=",
+      "hash": "sha256-mSZ2qCscFZMMB401LPLExUxJHXF6rPqUEfZNy4+R5Gg=",
       "url": "_framework\/Modulhandbuch.Frontend.dll"
     },
     {
@@ -289,5 +289,5 @@
       "url": "master.json"
     }
   ],
-  "version": "v8+eA2QO"
+  "version": "Va2yaUFv"
 };
