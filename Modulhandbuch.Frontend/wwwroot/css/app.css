@@ -167,3 +167,7 @@ span {
     display: inline;
     margin-right: 1rem;
 }
+
+.unselected::before {
+    color: lightgrey;
+}

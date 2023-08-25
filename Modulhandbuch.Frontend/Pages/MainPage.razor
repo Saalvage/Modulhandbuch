@@ -54,13 +54,13 @@
 @if (_bachelorModules == null || _masterModules == null) {
     <p><em>Laden...</em></p>
 } else {
-    <table class="table">
+    <table class="table table-striped">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>ID</th>
-                <th>Leistungspunkte</th>
-                <th>Turnus</th>
+                @foreach (var header in typeof(Header).GetEnumValues()) {
+                    <th @onclick="() => UpdateHeader((Header)header)" style="cursor: pointer">@header.ToString()
+                        <i class="bi bi-@(SortByHeader == (Header)header ? SortAsc ? "arrow-up" : "arrow-down" : "arrow-down-up unselected")"></i></th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -175,6 +175,14 @@
             enumerable = enumerable.Where(x => x.Turnus == Turn.Value);
         }
 
+        Func<Module, dynamic> func = SortByHeader switch {
+            Header.Name => x => x.Name,
+            Header.ID => x => x.Id,
+            Header.ECTS => x => x.Credits,
+            Header.Turnus => x => x.Turnus,
+        };
+        enumerable = SortAsc ? enumerable.OrderBy(func) : enumerable.OrderByDescending(func);
+
         return enumerable.DistinctBy(x => x.Id);
     }
 
@@ -210,4 +218,19 @@
     private static string NewlinesToParagraphs(string input)
         => "<p>" + input.Replace("\n", "</p><p>") + "</p>";
 
+    private enum Header {
+        Name, ID, ECTS, Turnus, 
+    }
+
+    private Header SortByHeader = Header.Name;
+    private bool SortAsc = true;
+
+    private void UpdateHeader(Header header) {
+        if (header == SortByHeader) {
+            SortAsc =! SortAsc;
+        } else {
+            SortByHeader = header;
+            SortAsc = false;
+        }
+    }
 }

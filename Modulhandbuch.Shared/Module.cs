@@ -2,13 +2,14 @@
 
 namespace Modulhandbuch.Shared;
 
+// Sorted by frequency
 public enum Turnus {
-    Irregular,
+    EverySemester,
     EverySummerSemester,
     EveryWinterSemester,
-    EverySemester,
     Yearly,
     OneTime,
+    Irregular,
     SeeNotes,
 }
 
